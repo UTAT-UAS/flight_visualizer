@@ -7,10 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      roslib:
-        specifier: ^1.4.1
-        version: 1.4.1
     devDependencies:
       '@eslint/compat':
         specifier: ^1.4.0
@@ -45,12 +41,18 @@ importers:
       globals:
         specifier: ^16.4.0
         version: 16.4.0
+      gstwebrtc-api:
+        specifier: link:gst-plugins-rs/net/webrtc/gstwebrtc-api
+        version: link:gst-plugins-rs/net/webrtc/gstwebrtc-api
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
       prettier-plugin-svelte:
         specifier: ^3.4.0
         version: 3.4.0(prettier@3.6.2)(svelte@5.41.0)
+      roslib:
+        specifier: ^1.4.1
+        version: 1.4.1
       sass-embedded:
         specifier: ^1.93.2
         version: 1.93.2

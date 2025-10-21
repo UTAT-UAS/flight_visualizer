@@ -25,8 +25,10 @@
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.12.4",
 		"globals": "^16.4.0",
+		"gstwebrtc-api": "link:gst-plugins-rs/net/webrtc/gstwebrtc-api",
 		"prettier": "^3.6.2",
 		"prettier-plugin-svelte": "^3.4.0",
+		"roslib": "^1.4.1",
 		"sass-embedded": "^1.93.2",
 		"svelte": "^5.39.5",
 		"svelte-check": "^4.3.2",
@@ -38,8 +40,5 @@
 		"onlyBuiltDependencies": [
 			"esbuild"
 		]
-	},
-	"dependencies": {
-		"roslib": "^1.4.1"
 	}
 }

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import * as ROSLIB from 'roslib';
+	import { initRemoteStreams, stream } from '$lib/webrtc.svelte';
+	import Stream from './Stream.svelte';
 
 	let connected = $state(false);
 	let ROS = null;
@@ -56,6 +58,8 @@
 		cvPointSub.subscribe((message) => {
 			cvPoint = message;
 		});
+
+		initRemoteStreams();
 	});
 </script>
 
@@ -72,6 +76,12 @@
 	<p>
 		Detection: {cvPoint?.x?.toFixed(2)}, {cvPoint?.y?.toFixed(2)}
 	</p>
+{/if}
+
+{#if stream.api}
+	{#each Object.values(stream.producers) as p (p.id)}
+		<Stream {stream} id={p.id} />
+	{/each}
 {/if}
 
 <style lang="scss">
