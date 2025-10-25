@@ -50,5 +50,6 @@
 	div.stream {
 		display: flex;
         flex-direction: column;
+		max-width: 500px;
 	}
 </style>

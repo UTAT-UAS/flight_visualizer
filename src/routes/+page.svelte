@@ -10,6 +10,9 @@
 	let coreStatusSub;
 	let coreStatus = $state({});
 
+	let localPosSub;
+	let localPos = $state({});
+
 	let cvPointSub;
 	let cvPoint = $state({});
 
@@ -18,21 +21,16 @@
 		// won't let the user connect more than once
 		ros.on('error', function () {
 			connected = false;
-			// console.log(error);
-			// setStatus(error);
 		});
 
 		// Find out exactly when we made a connection.
 		ros.on('connection', function () {
 			console.log('Connected!');
-			// setStatus('Connected!');
 			connected = true;
 		});
 
 		ros.on('close', function () {
 			connected = false;
-			// console.log('Connection closed');
-			// setStatus('Connection closed');
 		});
 	}
 
@@ -49,6 +47,14 @@
 		});
 		coreStatusSub.subscribe((message) => {
 			coreStatus = message;
+		});
+		localPosSub = new ROSLIB.Topic({
+			ros: ros,
+			name: '/fmu/out/vehicle_local_position',
+			messageType: 'px4_msgs/VehicleLocalPosition'
+		});
+		localPosSub.subscribe((message) => {
+			localPos = message;
 		});
 		cvPointSub = new ROSLIB.Topic({
 			ros: ros,
@@ -72,6 +78,11 @@
 	</p>
 	<p>
 		Status: {coreStatus.status}
+	</p>
+	<p>
+		{Math.floor(localPos.x * 100) / 100}
+		{Math.floor(localPos.y * 100) / 100}
+		{Math.floor(localPos.z * 100) / 100}
 	</p>
 	<p>
 		Detection: {cvPoint?.x?.toFixed(2)}, {cvPoint?.y?.toFixed(2)}
