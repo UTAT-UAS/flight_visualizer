@@ -21,6 +21,7 @@
 
 	let saveFrameSrv;
 	let calculateDistanceSrv;
+	let toggleOverlaySrv;
 
 	function connect(ros: ROSLIB.Ros) {
 		ros.connect(ROS_BRIDGE);
@@ -85,6 +86,12 @@
 			serviceType: 'flight_stack_msgs/srv/CalculateDistance'
 		});
 
+		toggleOverlaySrv = new ROSLIB.Service({
+			ros: ros,
+			name: '/uas/cv/toggle_overlay_depth',
+			serviceType: 'std_srvs/srv/SetBool'
+		});
+
 		initRemoteStreams();
 	});
 </script>
@@ -115,7 +122,7 @@
 
 {#if stream.api}
 	{#each Object.values(stream.producers) as p (p.id)}
-		<Stream {stream} id={p.id} {saveFrameSrv} {calculateDistanceSrv} />
+		<Stream {stream} id={p.id} {saveFrameSrv} {calculateDistanceSrv} {toggleOverlaySrv} />
 	{/each}
 {/if}
 
