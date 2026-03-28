@@ -21,6 +21,9 @@
 			points: { x: number; y: number }[];
 			saveResult?: string;
 			distanceResult?: string;
+			distance?: number;
+			lastPoints?: { x: number; y: number }[];
+			savedAnnotatedImages: string[];
 		}[]
 	>([]);
 
@@ -80,7 +83,9 @@
 				frameNum: frameNum,
 				width: canvas.width,
 				height: canvas.height,
-				points: []
+				points: [],
+				lastPoints: [],
+				savedAnnotatedImages: []
 			});
 
 			if (saveFrameSrv) {
@@ -118,6 +123,60 @@
 			});
 			calculateDistanceSrv.callService(request, (result: any) => {
 				frozenFrames[index].distanceResult = result.message;
+				if (result.success) {
+					frozenFrames[index].distance = result.distance;
+					// Save the points used for this calculation
+					frozenFrames[index].lastPoints = [...frozenFrames[index].points];
+
+					const canvas = document.createElement('canvas');
+					canvas.width = frame.width;
+					canvas.height = frame.height;
+					const ctx = canvas.getContext('2d');
+					if (ctx) {
+						const img = new Image();
+						img.onload = () => {
+							ctx.drawImage(img, 0, 0);
+
+							// Draw line
+							ctx.strokeStyle = '#00ff00';
+							ctx.lineWidth = 2;
+							ctx.beginPath();
+							ctx.moveTo(frame.points[0].x, frame.points[0].y);
+							ctx.lineTo(frame.points[1].x, frame.points[1].y);
+							ctx.stroke();
+
+							// Draw text
+							ctx.font = '38px sans-serif';
+							const text = `${result.distance.toFixed(2)} mm`;
+							const mx = (frame.points[0].x + frame.points[1].x) / 2;
+							const my = (frame.points[0].y + frame.points[1].y) / 2;
+
+							const metrics = ctx.measureText(text);
+							ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+							const padding = 6;
+							const bgWidth = metrics.width + padding * 2;
+							const bgHeight = 30 + padding * 2;
+							ctx.fillRect(mx - bgWidth / 2, my - bgHeight / 2, bgWidth, bgHeight);
+
+							ctx.fillStyle = '#00ff00';
+							ctx.textAlign = 'center';
+							ctx.textBaseline = 'middle';
+							ctx.fillText(text, mx, my);
+
+							// Draw points
+							ctx.fillStyle = 'red';
+							ctx.beginPath();
+							ctx.arc(frame.points[0].x, frame.points[0].y, 5, 0, 2 * Math.PI);
+							ctx.fill();
+							ctx.beginPath();
+							ctx.arc(frame.points[1].x, frame.points[1].y, 5, 0, 2 * Math.PI);
+							ctx.fill();
+
+							frozenFrames[index].savedAnnotatedImages.push(canvas.toDataURL('image/png'));
+						};
+						img.src = frame.image;
+					}
+				}
 			});
 		}
 	}
@@ -153,13 +212,42 @@
 			{/if}
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-			<div class="image-container">
-				<img src={frame.image} alt="Frozen frame" onclick={(e) => onImageClick(e, index)} />
-				{#each frame.points as point}
-					<div
-						class="point-marker"
-						style={`left: ${(point.x / frame.width) * 100}%; top: ${(point.y / frame.height) * 100}%;`}
-					></div>
+			<div class="frozen-frame-images">
+				<div class="image-container">
+					<img src={frame.image} alt="Frozen frame" onclick={(e) => onImageClick(e, index)} />
+					{#if frame.lastPoints && frame.lastPoints.length === 2 && frame.distance !== undefined}
+						<svg
+							class="distance-overlay"
+							viewBox={`0 0 ${frame.width} ${frame.height}`}
+							preserveAspectRatio="none"
+						>
+							<line
+								x1={frame.lastPoints[0].x}
+								y1={frame.lastPoints[0].y}
+								x2={frame.lastPoints[1].x}
+								y2={frame.lastPoints[1].y}
+								stroke="#00ff00"
+								stroke-width="2"
+							/>
+						</svg>
+						<div
+							class="distance-label"
+							style={`left: ${((frame.lastPoints[0].x + frame.lastPoints[1].x) / 2 / frame.width) * 100}%; top: ${((frame.lastPoints[0].y + frame.lastPoints[1].y) / 2 / frame.height) * 100}%;`}
+						>
+							{frame.distance.toFixed(2)} mm
+						</div>
+					{/if}
+					{#each frame.points as point}
+						<div
+							class="point-marker"
+							style={`left: ${(point.x / frame.width) * 100}%; top: ${(point.y / frame.height) * 100}%;`}
+						></div>
+					{/each}
+				</div>
+				{#each frame.savedAnnotatedImages as annotatedImage}
+					<div class="image-container">
+						<img src={annotatedImage} alt="Annotated frame" />
+					</div>
 				{/each}
 			</div>
 			{#if frame.points.length > 0}
@@ -184,7 +272,10 @@
 	div.stream {
 		display: flex;
 		flex-direction: column;
-		max-width: 500px;
+		max-width: fit-content;
+		video {
+			max-width: 500px;
+		}
 	}
 	.frozen-frame {
 		margin-top: 1rem;
@@ -192,13 +283,21 @@
 		padding: 1rem;
 		border-radius: 4px;
 	}
+	.frozen-frame-images {
+		display: flex;
+		flex-direction: row;
+		flex-wrap: nowrap;
+		gap: 1rem;
+		padding-bottom: 1rem;
+	}
 	.image-container {
 		position: relative;
 		display: inline-block;
+		flex-shrink: 0;
 		max-width: 100%;
 	}
 	.frozen-frame img {
-		max-width: 100%;
+		max-width: 500px;
 		cursor: crosshair;
 		border: 1px solid #eee;
 		display: block;
@@ -211,5 +310,25 @@
 		border-radius: 50%;
 		transform: translate(-50%, -50%);
 		pointer-events: none;
+	}
+	.distance-overlay {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+	}
+	.distance-label {
+		position: absolute;
+		background-color: rgba(0, 0, 0, 0.7);
+		color: #00ff00;
+		font-weight: bold;
+		padding: 2px 6px;
+		border-radius: 4px;
+		font-size: 14px;
+		transform: translate(-50%, -50%);
+		pointer-events: none;
+		white-space: nowrap;
 	}
 </style>
