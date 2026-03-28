@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type ConsumerSession from '../../gst-plugins-rs/net/webrtc/gstwebrtc-api/types/consumer-session';
-	import type GstWebRTCAPI from '../../gst-plugins-rs/net/webrtc/gstwebrtc-api/types/gstwebrtc-api';
 	import type { StreamSet } from '$lib/webrtc.svelte';
 
 	let { stream, id }: { stream: StreamSet; id: string } = $props();
 
 	let video: HTMLVideoElement;
+
+	let info = $state({});
 
 	function connect() {
 		if (!stream.api) {
@@ -27,6 +27,9 @@
 			session.addEventListener('remoteControllerChanged', () => {
 				if (session.remoteController) {
 					session.remoteController.attachVideoElement(video);
+					session.remoteController.addEventListener('info', (e) => {
+						info = e.detail.info.meta;
+					});
 				}
 			});
 			session.connect();
@@ -44,12 +47,21 @@
 	<button onclick={close}>close</button>
 
 	<video bind:this={video}></video>
+	{#if info}
+		<div>
+			<p>
+				Frame: {(((info?.hours || 0) * 60 + (info?.minutes || 0)) * 60 + (info?.seconds || 0)) *
+					info?.fps?.[0] +
+					(info?.frames || 0)}
+			</p>
+		</div>
+	{/if}
 </div>
 
 <style>
 	div.stream {
 		display: flex;
-        flex-direction: column;
+		flex-direction: column;
 		max-width: 500px;
 	}
 </style>
