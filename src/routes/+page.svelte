@@ -16,7 +16,9 @@
 	let cvPointSub;
 	let cvPoint = $state({});
 
-	function connect(ros) {
+	let calculateDistancePub;
+
+	function connect(ros: ROSLIB.Ros) {
 		ros.connect('ws://localhost:8080');
 		// won't let the user connect more than once
 		ros.on('error', function () {
@@ -35,7 +37,7 @@
 	}
 
 	onMount(() => {
-		let ros = new ROSLIB.Ros({ encoding: 'ascii' });
+		let ros = new ROSLIB.Ros({});
 		connect(ros);
 		// if (!connected) {
 		// 	return;
@@ -65,6 +67,12 @@
 			cvPoint = message;
 		});
 
+		calculateDistancePub = new ROSLIB.Topic({
+			ros: ros,
+			name: '/calculate_distance',
+			messageType: 'std_msgs/Int32MultiArray'
+		});
+
 		initRemoteStreams();
 	});
 </script>
@@ -91,7 +99,7 @@
 
 {#if stream.api}
 	{#each Object.values(stream.producers) as p (p.id)}
-		<Stream {stream} id={p.id} />
+		<Stream {stream} id={p.id} {calculateDistancePub} />
 	{/each}
 {/if}
 
