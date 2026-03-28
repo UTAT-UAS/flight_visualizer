@@ -1,6 +1,7 @@
 import GstWebRTCAPI from "gstwebrtc-api";
 import type ConsumerSession from "gstwebrtc-api/types/consumer-session";
 import type { Peer } from "gstwebrtc-api/types/gstwebrtc-api";
+import { SIGNALLING_SERVER } from "$lib/uri.js";
 
 export interface StreamSet {
     api: GstWebRTCAPI | null,
@@ -18,7 +19,7 @@ export function initRemoteStreams() {
     // @ts-expect-error
     stream.api = new GstWebRTCAPI({
         meta: { name: 'WebClient-UAS' },
-        signalingServerUrl: 'ws://localhost:8443'
+        signalingServerUrl: SIGNALLING_SERVER
     });
 
     stream.api.registerPeerListener({

@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import * as ROSLIB from 'roslib';
 	import { initRemoteStreams, stream } from '$lib/webrtc.svelte';
+	import { ROS_BRIDGE } from '$lib/uri.js';
 	import Stream from './Stream.svelte';
 	import Pump from './Pump.svelte';
 
@@ -22,7 +23,7 @@
 	let calculateDistanceSrv;
 
 	function connect(ros: ROSLIB.Ros) {
-		ros.connect('ws://localhost:8080');
+		ros.connect(ROS_BRIDGE);
 		// won't let the user connect more than once
 		ros.on('error', function () {
 			connected = false;
@@ -106,7 +107,7 @@
 	<p>
 		Detection: {cvPoint?.x?.toFixed(2)}, {cvPoint?.y?.toFixed(2)}
 	</p>
-	
+
 	{#if rosObj}
 		<Pump ros={rosObj} />
 	{/if}
