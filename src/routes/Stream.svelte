@@ -6,8 +6,9 @@
 		stream,
 		id,
 		saveFrameSrv,
-		calculateDistanceSrv
-	}: { stream: StreamSet; id: string; saveFrameSrv?: any; calculateDistanceSrv?: any } = $props();
+		calculateDistanceSrv,
+		toggleOverlaySrv
+	}: { stream: StreamSet; id: string; saveFrameSrv?: any; calculateDistanceSrv?: any; toggleOverlaySrv?: any } = $props();
 
 	let video: HTMLVideoElement;
 
@@ -57,6 +58,15 @@
 	}
 	function close() {
 		stream.sessions[id]?.close();
+	}
+
+	function setOverlay(enabled: boolean) {
+		if (toggleOverlaySrv) {
+			const request = new ROSLIB.ServiceRequest({ data: enabled });
+			toggleOverlaySrv.callService(request, (result: any) => {
+				// We don't track state locally since the UI may not know the actual initial state
+			});
+		}
 	}
 
 	function freezeFrame() {
@@ -188,6 +198,8 @@
 		<button onclick={connect}>connect</button>
 		<button onclick={close}>close</button>
 		<button onclick={freezeFrame}>freeze frame</button>
+		<button onclick={() => setOverlay(true)}>enable depth overlay</button>
+		<button onclick={() => setOverlay(false)}>disable depth overlay</button>
 	</div>
 
 	<!-- svelte-ignore a11y_media_has_caption -->
