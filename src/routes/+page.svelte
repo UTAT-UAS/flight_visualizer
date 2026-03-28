@@ -16,7 +16,8 @@
 	let cvPointSub;
 	let cvPoint = $state({});
 
-	let calculateDistancePub;
+	let saveFrameSrv;
+	let calculateDistanceSrv;
 
 	function connect(ros: ROSLIB.Ros) {
 		ros.connect('ws://localhost:8080');
@@ -67,10 +68,16 @@
 			cvPoint = message;
 		});
 
-		calculateDistancePub = new ROSLIB.Topic({
+		saveFrameSrv = new ROSLIB.Service({
 			ros: ros,
-			name: '/calculate_distance',
-			messageType: 'std_msgs/Int32MultiArray'
+			name: '/uas/cv/save_frame',
+			serviceType: 'flight_stack_msgs/srv/SaveFrame'
+		});
+
+		calculateDistanceSrv = new ROSLIB.Service({
+			ros: ros,
+			name: '/uas/cv/calculate_distance',
+			serviceType: 'flight_stack_msgs/srv/CalculateDistance'
 		});
 
 		initRemoteStreams();
@@ -99,7 +106,7 @@
 
 {#if stream.api}
 	{#each Object.values(stream.producers) as p (p.id)}
-		<Stream {stream} id={p.id} {calculateDistancePub} />
+		<Stream {stream} id={p.id} {saveFrameSrv} {calculateDistanceSrv} />
 	{/each}
 {/if}
 

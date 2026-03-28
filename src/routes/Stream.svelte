@@ -1,11 +1,13 @@
 <script lang="ts">
 	import type { StreamSet } from '$lib/webrtc.svelte';
+	import * as ROSLIB from 'roslib';
 
 	let {
 		stream,
 		id,
-		calculateDistancePub
-	}: { stream: StreamSet; id: string; calculateDistancePub?: any } = $props();
+		saveFrameSrv,
+		calculateDistanceSrv
+	}: { stream: StreamSet; id: string; saveFrameSrv?: any; calculateDistanceSrv?: any } = $props();
 
 	let video: HTMLVideoElement;
 
@@ -17,6 +19,8 @@
 			width: number;
 			height: number;
 			points: { x: number; y: number }[];
+			saveResult?: string;
+			distanceResult?: string;
 		}[]
 	>([]);
 
@@ -68,13 +72,23 @@
 						(info.fps?.[0] || 0) +
 					(info.frames || 0);
 			}
+			frameNum = isNaN(frameNum) ? 0 : frameNum;
+			const index = frozenFrames.length;
+
 			frozenFrames.push({
 				image,
-				frameNum: isNaN(frameNum) ? 0 : frameNum,
+				frameNum: frameNum,
 				width: canvas.width,
 				height: canvas.height,
 				points: []
 			});
+
+			if (saveFrameSrv) {
+				const request = new ROSLIB.ServiceRequest({ frame_id: frameNum });
+				saveFrameSrv.callService(request, (result: any) => {
+					frozenFrames[index].saveResult = result.message;
+				});
+			}
 		}
 	}
 
@@ -94,15 +108,16 @@
 
 	function calculateDistance(index: number) {
 		const frame = frozenFrames[index];
-		if (frame.points.length === 2 && calculateDistancePub) {
-			calculateDistancePub.publish({
-				data: [
-					frame.frameNum,
-					frame.points[0].x,
-					frame.points[0].y,
-					frame.points[1].x,
-					frame.points[1].y
-				]
+		if (frame.points.length === 2 && calculateDistanceSrv) {
+			const request = new ROSLIB.ServiceRequest({
+				frame_id: frame.frameNum,
+				x1: frame.points[0].x,
+				y1: frame.points[0].y,
+				x2: frame.points[1].x,
+				y2: frame.points[1].y
+			});
+			calculateDistanceSrv.callService(request, (result: any) => {
+				frozenFrames[index].distanceResult = result.message;
 			});
 		}
 	}
@@ -131,6 +146,11 @@
 	{#each frozenFrames as frame, index}
 		<div class="frozen-frame">
 			<p>Frozen Frame: {frame.frameNum}</p>
+			{#if frame.saveResult}
+				<p><b>Save Status:</b> {frame.saveResult}</p>
+			{:else}
+				<p><b>Save Status:</b> Requesting...</p>
+			{/if}
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 			<div class="image-container">
@@ -151,6 +171,9 @@
 			{/if}
 			{#if frame.points.length === 2}
 				<button onclick={() => calculateDistance(index)}>Calculate Distance</button>
+			{/if}
+			{#if frame.distanceResult}
+				<p><b>Distance Result:</b> {frame.distanceResult}</p>
 			{/if}
 			<button onclick={() => frozenFrames.splice(index, 1)}>remove</button>
 		</div>
@@ -182,8 +205,8 @@
 	}
 	.point-marker {
 		position: absolute;
-		width: 10px;
-		height: 10px;
+		width: 5px;
+		height: 5px;
 		background-color: red;
 		border-radius: 50%;
 		transform: translate(-50%, -50%);
