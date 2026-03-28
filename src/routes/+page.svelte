@@ -3,8 +3,10 @@
 	import * as ROSLIB from 'roslib';
 	import { initRemoteStreams, stream } from '$lib/webrtc.svelte';
 	import Stream from './Stream.svelte';
+	import Pump from './Pump.svelte';
 
 	let connected = $state(false);
+	let rosObj = $state(null);
 	let ROS = null;
 
 	let coreStatusSub;
@@ -30,10 +32,12 @@
 		ros.on('connection', function () {
 			console.log('Connected!');
 			connected = true;
+			rosObj = ros;
 		});
 
 		ros.on('close', function () {
 			connected = false;
+			rosObj = null;
 		});
 	}
 
@@ -102,6 +106,10 @@
 	<p>
 		Detection: {cvPoint?.x?.toFixed(2)}, {cvPoint?.y?.toFixed(2)}
 	</p>
+	
+	{#if rosObj}
+		<Pump ros={rosObj} />
+	{/if}
 {/if}
 
 {#if stream.api}
