@@ -5,15 +5,13 @@
 	export let ros: ROSLIB.Ros;
 
 	// Topics
-	let pumpThrottleTopic: ROSLIB.Topic;
-	let servoUsTopic: ROSLIB.Topic;
+	let pumpTimeTopic: ROSLIB.Topic;
+	let servoAngleTopic: ROSLIB.Topic;
+	let toggleAutoTargetClient: ROSLIB.Service;
 
 	// Pump state
-	let pumpThrottle = 80;
-	let currentPumpThrottle = 0;
-	let autoZeroPump = true;
-	let autoZeroDelay = 3000;
-	let pumpTimeout: ReturnType<typeof setTimeout> | null = null;
+	let pumpTimeMs = 3000;
+	let currentPumpTime = 0;
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
 	let timeLeft = 0;
 
@@ -23,23 +21,29 @@
 	let servoTimeout: ReturnType<typeof setTimeout> | null = null;
 	let pendingAngle = 0;
 	let keyboardIncrement = 1;
+	let autoTargetEnabled = false;
 
 	onMount(() => {
-		pumpThrottleTopic = new ROSLIB.Topic({
+		pumpTimeTopic = new ROSLIB.Topic({
 			ros: ros,
-			name: '/set_pump_throttle',
+			name: '/set_pump_time',
 			messageType: 'std_msgs/Int32'
 		});
 
-		servoUsTopic = new ROSLIB.Topic({
+		servoAngleTopic = new ROSLIB.Topic({
 			ros: ros,
-			name: '/set_servo_us',
+			name: '/set_servo_angle',
 			messageType: 'std_msgs/Int32'
+		});
+
+		toggleAutoTargetClient = new ROSLIB.Service({
+			ros: ros,
+			name: '/uas/cv/toggle_auto_target',
+			serviceType: 'std_srvs/srv/SetBool'
 		});
 	});
 
 	onDestroy(() => {
-		if (pumpTimeout) clearTimeout(pumpTimeout);
 		if (countdownInterval) clearInterval(countdownInterval);
 		if (servoTimeout) clearTimeout(servoTimeout);
 	});
@@ -48,17 +52,16 @@
 		return Math.min(Math.max(val, min), max);
 	}
 
-	function sendPumpThrottle() {
-		if (!pumpThrottleTopic) return;
-		const msg = new ROSLIB.Message({ data: Math.round(pumpThrottle) });
-		pumpThrottleTopic.publish(msg);
-		currentPumpThrottle = Math.round(pumpThrottle);
+	function sendPumpTime() {
+		if (!pumpTimeTopic) return;
+		const msg = new ROSLIB.Message({ data: Math.round(pumpTimeMs) });
+		pumpTimeTopic.publish(msg);
+		currentPumpTime = Math.round(pumpTimeMs);
 
-		if (autoZeroPump) {
-			if (pumpTimeout) clearTimeout(pumpTimeout);
-			if (countdownInterval) clearInterval(countdownInterval);
+		if (countdownInterval) clearInterval(countdownInterval);
 
-			timeLeft = autoZeroDelay;
+		if (pumpTimeMs > 0) {
+			timeLeft = pumpTimeMs;
 			countdownInterval = setInterval(() => {
 				timeLeft -= 100;
 				if (timeLeft <= 0 && countdownInterval) {
@@ -66,13 +69,33 @@
 					countdownInterval = null;
 				}
 			}, 100);
-
-			pumpTimeout = setTimeout(() => {
-				const zeroMsg = new ROSLIB.Message({ data: 0 });
-				pumpThrottleTopic.publish(zeroMsg);
-				currentPumpThrottle = 0;
-			}, autoZeroDelay);
+		} else {
+			timeLeft = 0;
 		}
+	}
+
+	function stopPump() {
+		if (!pumpTimeTopic) return;
+		const msg = new ROSLIB.Message({ data: 0 });
+		pumpTimeTopic.publish(msg);
+		currentPumpTime = 0;
+		timeLeft = 0;
+		if (countdownInterval) {
+			clearInterval(countdownInterval);
+			countdownInterval = null;
+		}
+	}
+
+	function toggleAutoTarget() {
+		if (!toggleAutoTargetClient) return;
+		const request = new ROSLIB.ServiceRequest({
+			data: autoTargetEnabled
+		});
+		toggleAutoTargetClient.callService(request, (result) => {
+			console.log('Toggle Auto Target:', result.message);
+		}, (error) => {
+			console.error('Service error:', error);
+		});
 	}
 
 	function sendServoAngle() {
@@ -86,13 +109,10 @@
 		}
 
 		servoTimeout = setTimeout(() => {
-			if (!servoUsTopic) return;
-			let servo_angle_param = 51;
-			let target = 1464.5 + (pendingAngle * 1837) / (servo_angle_param * 1.25);
-			let finalValue = Math.round(clamp(target, 546, 2383));
+			if (!servoAngleTopic) return;
 
-			const msg = new ROSLIB.Message({ data: finalValue });
-			servoUsTopic.publish(msg);
+			const msg = new ROSLIB.Message({ data: Math.round(pendingAngle) });
+			servoAngleTopic.publish(msg);
 
 			currentServoAngle = pendingAngle;
 		}, 200);
@@ -119,9 +139,10 @@
 			keyboardIncrement += 1;
 		} else if (key === 'enter' || key === 'f') {
 			e.preventDefault();
-			autoZeroPump = true;
-			autoZeroDelay = 3000;
-			sendPumpThrottle();
+			sendPumpTime();
+		} else if (key === 'escape' || key === 'x') {
+			e.preventDefault();
+			stopPump();
 		}
 	}
 </script>
@@ -144,35 +165,33 @@
 	<h3>Pump Controls</h3>
 	<div class="throttle">
 		<div class="throttle-status">
-			<p>Current Throttle: {currentPumpThrottle}</p>
-			<div class="throttle-bar-container">
-				<div class="throttle-bar" style="width: {currentPumpThrottle}%"></div>
-			</div>
+			<p>Current Time Commanded: {currentPumpTime} ms</p>
 		</div>
 		{#if timeLeft > 0}
-			<p class="auto-zero-text">Auto-zero in: {(timeLeft / 1000).toFixed(1)}s</p>
+			<p class="auto-zero-text">Time remaining: {(timeLeft / 1000).toFixed(1)}s</p>
 		{/if}
 	</div>
 
 	<div class="control-group">
 		<label>
-			Pump Throttle (0-100):
-			<input type="number" min="0" max="100" bind:value={pumpThrottle} />
+			Pump Time (ms):
+			<input type="number" min="0" bind:value={pumpTimeMs} />
 		</label>
-		<label>
-			<input type="checkbox" bind:checked={autoZeroPump} />
-			Auto Zero
-		</label>
-		{#if autoZeroPump}
-			<label>
-				Delay (ms):
-				<input type="number" min="0" bind:value={autoZeroDelay} />
-			</label>
-		{/if}
-		<button on:click={sendPumpThrottle}>Send Pump Throttle</button>
+		<div class="servo-buttons" style="flex-direction: row">
+			<button on:click={sendPumpTime}>Command Pump</button>
+			<button on:click={stopPump} style="background-color: #dc3545; color: white;"
+				>Stop Pump (0 ms)</button
+			>
+		</div>
 	</div>
 
 	<h3>Servo Controls</h3>
+	<div class="control-group">
+		<label style="font-weight: bold; margin-bottom: 0.5rem; color: #d00;">
+			<input type="checkbox" bind:checked={autoTargetEnabled} on:change={toggleAutoTarget} />
+			Enable Auto Target (Overrides Manual)
+		</label>
+	</div>
 	<div class="servo-visual">
 		<div>
 			<p>Current Angle: {currentServoAngle}°</p>
@@ -221,19 +240,6 @@
 	.throttle-status p {
 		margin: 0 0 0.5rem 0;
 	}
-	.throttle-bar-container {
-		width: 100%;
-		height: 20px;
-		background-color: #eee;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		overflow: hidden;
-	}
-	.throttle-bar {
-		height: 100%;
-		background-color: #007bff;
-		transition: width 0.2s ease-out;
-	}
 	.auto-zero-text {
 		margin: 0;
 	}
@@ -250,12 +256,12 @@
 				&:active,
 				&:focus {
 					outline: none;
-                    background-color: rgb(231, 115, 115);
+					background-color: rgb(231, 115, 115);
 				}
 			}
-            &:has(input:focus) {
-                background-color: rgb(231, 115, 115);
-            }
+			&:has(input:focus) {
+				background-color: rgb(231, 115, 115);
+			}
 		}
 	}
 	label {
@@ -274,7 +280,7 @@
 	}
 	.servo-visual {
 		display: grid;
-        grid-template-columns: 1fr 2fr;
+		grid-template-columns: 1fr 2fr;
 		gap: 2rem;
 		margin-bottom: 1rem;
 	}
