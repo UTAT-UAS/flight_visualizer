@@ -17,7 +17,7 @@
 	let localPos = $state({});
 
 	let cvPointSub;
-	let cvPoint = $state({});
+	let cvPoint = $state({ points: [] });
 
 	let saveFrameSrv;
 	let calculateDistanceSrv;
@@ -68,7 +68,7 @@
 		cvPointSub = new ROSLIB.Topic({
 			ros: ros,
 			name: '/uas/cv/position',
-			messageType: 'geometry_msgs/Point'
+			messageType: 'geometry_msgs/Polygon'
 		});
 		cvPointSub.subscribe((message) => {
 			cvPoint = message;
@@ -112,7 +112,17 @@
 		{Math.floor(localPos.z * 100) / 100}
 	</p>
 	<p>
-		Detection: {cvPoint?.x?.toFixed(2)}, {cvPoint?.y?.toFixed(2)}
+		Detection: 
+		<br>
+		Center: {cvPoint.points[0]?.x?.toFixed(2)}, {cvPoint.points[0]?.y?.toFixed(2)}, {cvPoint.points[0]?.z?.toFixed(2)}
+		<br>
+		TopLeft: {cvPoint.points[1]?.x?.toFixed(2)}, {cvPoint.points[1]?.y?.toFixed(2)}, {cvPoint.points[1]?.z?.toFixed(2)}
+		<br>
+		ToRight: {cvPoint.points[2]?.x?.toFixed(2)}, {cvPoint.points[2]?.y?.toFixed(2)}, {cvPoint.points[2]?.z?.toFixed(2)}
+		<br>
+		BoRight: {cvPoint.points[3]?.x?.toFixed(2)}, {cvPoint.points[3]?.y?.toFixed(2)}, {cvPoint.points[3]?.z?.toFixed(2)}
+		<br>
+		BotLeft: {cvPoint.points[4]?.x?.toFixed(2)}, {cvPoint.points[4]?.y?.toFixed(2)}, {cvPoint.points[4]?.z?.toFixed(2)}
 	</p>
 
 	{#if rosObj}
