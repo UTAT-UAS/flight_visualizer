@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import * as ROSLIB from 'roslib';
 	import { initRemoteStreams, stream } from '$lib/webrtc.svelte';
-	import { ROS_BRIDGE } from '$lib/uri.js';
+	import { HOST, ROS_BRIDGE } from '$lib/uri.js';
 	import Stream from './Stream.svelte';
 	import Pump from './Pump.svelte';
 
@@ -95,6 +95,8 @@
 		initRemoteStreams();
 	});
 </script>
+
+HOST: { HOST }
 
 {#if !connected}
 	<h1>ROS not connected</h1>
