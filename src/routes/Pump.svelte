@@ -9,12 +9,17 @@
 	let servoAngleTopic: ROSLIB.Topic;
 	let toggleAutoTargetClient: ROSLIB.Service;
 	let togglePeripheralClient: ROSLIB.Service;
+	let resetTimersClient: ROSLIB.Service;
+	let pumpTimeSub: ROSLIB.Topic;
+	let pumpTimePrimedSub: ROSLIB.Topic;
 
 	// Pump state
 	let pumpTimeMs = 3000;
 	let currentPumpTime = 0;
 	let countdownInterval: ReturnType<typeof setInterval> | null = null;
 	let timeLeft = 0;
+	let totalPumpTime = 0;
+	let totalPumpTimePrimed = 0;
 
 	// Servo state
 	let servoAngle = 0;
@@ -49,11 +54,37 @@
 			name: '/toggle_peripheral_mode',
 			serviceType: 'std_srvs/srv/SetBool'
 		});
+
+		resetTimersClient = new ROSLIB.Service({
+			ros: ros,
+			name: '/uas/pump/reset_timers',
+			serviceType: 'std_srvs/srv/Empty'
+		});
+
+		pumpTimeSub = new ROSLIB.Topic({
+			ros: ros,
+			name: '/uas/pump/time',
+			messageType: 'std_msgs/Float32'
+		});
+		pumpTimeSub.subscribe((msg: any) => {
+			totalPumpTime = msg.data;
+		});
+
+		pumpTimePrimedSub = new ROSLIB.Topic({
+			ros: ros,
+			name: '/uas/pump/time_primed',
+			messageType: 'std_msgs/Float32'
+		});
+		pumpTimePrimedSub.subscribe((msg: any) => {
+			totalPumpTimePrimed = msg.data;
+		});
 	});
 
 	onDestroy(() => {
 		if (countdownInterval) clearInterval(countdownInterval);
 		if (servoTimeout) clearTimeout(servoTimeout);
+		if (pumpTimeSub) pumpTimeSub.unsubscribe();
+		if (pumpTimePrimedSub) pumpTimePrimedSub.unsubscribe();
 	});
 
 	function clamp(val: number, min: number, max: number) {
@@ -113,6 +144,16 @@
 		});
 		togglePeripheralClient.callService(request, (result) => {
 			console.log('Toggle Peripheral Mode:', result.message);
+		}, (error) => {
+			console.error('Service error:', error);
+		});
+	}
+
+	function resetTimers() {
+		if (!resetTimersClient) return;
+		const request = new ROSLIB.ServiceRequest({});
+		resetTimersClient.callService(request, () => {
+			console.log('Timers reset');
 		}, (error) => {
 			console.error('Service error:', error);
 		});
@@ -190,6 +231,12 @@
 		{#if timeLeft > 0}
 			<p class="auto-zero-text">Time remaining: {(timeLeft / 1000).toFixed(1)}s</p>
 		{/if}
+	</div>
+
+	<div style="margin-bottom: 1rem; border-top: 1px solid #ddd; padding-top: 1rem;">
+		<p style="margin: 0 0 0.5rem 0;"><strong>Total Fired:</strong> {totalPumpTime.toFixed(2)}s</p>
+		<p style="margin: 0 0 0.5rem 0;"><strong>Total Fired (Primed):</strong> {totalPumpTimePrimed.toFixed(2)}s</p>
+		<button on:click={resetTimers} style="font-size: 0.9em; padding: 0.25rem 0.5rem;">Reset Timers</button>
 	</div>
 
 	<div class="control-group">
