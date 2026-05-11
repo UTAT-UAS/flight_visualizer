@@ -8,6 +8,7 @@
 	let pumpTimeTopic: ROSLIB.Topic;
 	let servoAngleTopic: ROSLIB.Topic;
 	let toggleAutoTargetClient: ROSLIB.Service;
+	let togglePeripheralClient: ROSLIB.Service;
 
 	// Pump state
 	let pumpTimeMs = 3000;
@@ -22,6 +23,7 @@
 	let pendingAngle = 0;
 	let keyboardIncrement = 1;
 	let autoTargetEnabled = false;
+	let peripheralModeEnabled = false;
 
 	onMount(() => {
 		pumpTimeTopic = new ROSLIB.Topic({
@@ -39,6 +41,12 @@
 		toggleAutoTargetClient = new ROSLIB.Service({
 			ros: ros,
 			name: '/uas/cv/toggle_auto_target',
+			serviceType: 'std_srvs/srv/SetBool'
+		});
+
+		togglePeripheralClient = new ROSLIB.Service({
+			ros: ros,
+			name: '/toggle_peripheral_mode',
 			serviceType: 'std_srvs/srv/SetBool'
 		});
 	});
@@ -93,6 +101,18 @@
 		});
 		toggleAutoTargetClient.callService(request, (result) => {
 			console.log('Toggle Auto Target:', result.message);
+		}, (error) => {
+			console.error('Service error:', error);
+		});
+	}
+
+	function togglePeripheralMode() {
+		if (!togglePeripheralClient) return;
+		const request = new ROSLIB.ServiceRequest({
+			data: peripheralModeEnabled
+		});
+		togglePeripheralClient.callService(request, (result) => {
+			console.log('Toggle Peripheral Mode:', result.message);
 		}, (error) => {
 			console.error('Service error:', error);
 		});
@@ -186,6 +206,12 @@
 	</div>
 
 	<h3>Servo Controls</h3>
+	<div class="control-group">
+		<label style="font-weight: bold; margin-bottom: 0.5rem; color: #007bff;">
+			<input type="checkbox" bind:checked={peripheralModeEnabled} on:change={togglePeripheralMode} />
+			Enable Peripheral Mode (Toggle Actuator Control)
+		</label>
+	</div>
 	<div class="control-group">
 		<label style="font-weight: bold; margin-bottom: 0.5rem; color: #d00;">
 			<input type="checkbox" bind:checked={autoTargetEnabled} on:change={toggleAutoTarget} />
