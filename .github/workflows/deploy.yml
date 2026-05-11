@@ -17,12 +17,11 @@ concurrency:
 jobs:
   build_site:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: flight_visualizer
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -37,13 +36,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Build gstwebrtc-api
+        run: pnpm --dir gst-plugins-rs/net/webrtc/gstwebrtc-api install && pnpm --dir gst-plugins-rs/net/webrtc/gstwebrtc-api run build
+
       - name: Build
         run: pnpm run build
 
       - name: Upload Artifacts
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'flight_visualizer/build/'
+          path: 'build/'
 
   deploy:
     environment:

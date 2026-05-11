@@ -7,6 +7,9 @@ const config = {
 	// for more information about preprocessors
 	preprocess: vitePreprocess(),
 	kit: {
+		paths: {
+			base: process.argv.includes('dev') ? '' : '/flight_visualizer'
+		},
 		adapter: adapter({
 			pages: "build",
 			assets: "build",
